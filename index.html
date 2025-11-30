@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASE FILE: DRACO // Bitdefender x NetworkChuck</title>
+    <style>
+        /* --- RESET & VARIABLES --- */
+        :root {
+            --bg-color: #050505;
+            --text-color: #e0e0e0;
+            --accent-red: #ff2a2a; /* Threat color */
+            --accent-cyan: #00f3ff; /* Defense color */
+            --accent-gold: #f3ce5e; /* Highlight */
+            --glass: rgba(255, 255, 255, 0.03);
+            --border-color: #333;
+            --font-mono: 'Courier New', Courier, monospace;
+            --font-sans: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            cursor: none; /* Hiding default cursor for custom one */
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-sans);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* --- CUSTOM CURSOR --- */
+        .cursor-dot,
+        .cursor-outline {
+            position: fixed;
+            top: 0;
+            left: 0;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            z-index: 9999;
+            pointer-events: none;
+        }
+
+        .cursor-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-cyan);
+        }
+
+        .cursor-outline {
+            width: 40px;
+            height: 40px;
+            border: 1px solid var(--accent-cyan);
+            transition: width 0.2s, height 0.2s, background-color 0.2s;
+        }
+
+        body.hovering .cursor-outline {
+            width: 60px;
+            height: 60px;
+            background-color: rgba(0, 243, 255, 0.1);
+            border-color: var(--accent-red);
+        }
+
+        /* --- BACKGROUND FX --- */
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 999;
+            opacity: 0.3;
+        }
+
+        .noise {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 998;
+            opacity: 0.05;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        /* --- TYPOGRAPHY & LAYOUT --- */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 0 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        h1, h2, h3 {
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .section-header {
+            margin-bottom: 2rem;
+            border-left: 3px solid var(--accent-red);
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .section-header h2 {
+            font-size: 2.5rem;
+            color: var(--text-color);
+        }
+
+        .highlight-cyan { color: var(--accent-cyan); }
+        .highlight-red { color: var(--accent-red); }
+        .highlight-gold { color: var(--accent-gold); }
+
+        p {
+            margin-bottom: 1.5rem;
+            font-size: 1.1rem;
+            color: #bbb;
+        }
+
+        /* --- HERO SECTION --- */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            text-align: center;
+            position: relative;
+            padding: 50px 0;
+        }
+
+        .hero h1 {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+        }
+
+        .hero .subtitle {
+            font-family: var(--font-mono);
+            color: var(--accent-red);
+            font-size: 1.2rem;
+            margin-bottom: 40px;
+        }
+
+        .hero-img-container {
+            width: 90%;
+            max-width: 900px;
+            border: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            margin: 0 auto;
+        }
+
+        .hero-img-container img {
+            width: 100%;
+            display: block;
+            filter: grayscale(80%) contrast(120%);
+            transition: 0.5s ease;
+        }
+
+        .hero-img-container:hover img {
+            filter: grayscale(0%) contrast(100%);
+        }
+
+        /* --- CONTENT CARDS --- */
+        .content-block {
+            margin: 100px 0;
+            opacity: 0;
+            transform: translateY(50px);
+            transition: all 0.8s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        .content-block.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .card {
+            background: var(--glass);
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.1);
+        }
+
+        .card img {
+            width: 100%;
+            height: auto;
+            border-radius: 2px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #333;
+        }
+
+        /* --- TERMINAL EFFECT --- */
+        .terminal-box {
+            background: #000;
+            border: 1px solid var(--accent-red);
+            padding: 20px;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            color: var(--accent-red);
+            margin: 20px 0;
+            box-shadow: 0 0 10px rgba(255, 42, 42, 0.2);
+        }
+        
+        .terminal-box::before {
+            content: "> SYSTEM ALERT: THREAT DETECTED";
+            display: block;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--accent-red);
+            padding-bottom: 5px;
+        }
+
+        /* --- STATS COUNTER --- */
+        .stat-huge {
+            font-size: 5rem;
+            font-weight: bold;
+            color: var(--accent-gold);
+            font-family: var(--font-mono);
+            text-shadow: 0 0 20px rgba(243, 206, 94, 0.3);
+            line-height: 1;
+        }
+
+        /* --- FULL WIDTH IMAGE --- */
+        .full-width-img {
+            width: 100%;
+            margin: 40px 0;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            opacity: 0.8;
+            transition: opacity 0.3s;
+        }
+        
+        .full-width-img:hover {
+            opacity: 1;
+            border-color: var(--accent-gold);
+        }
+
+        /* --- FOOTER --- */
+        footer {
+            margin-top: 100px;
+            padding: 50px 0;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+            font-family: var(--font-mono);
+        }
+
+        .credits {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .credits strong {
+            color: var(--accent-cyan);
+        }
+
+        /* --- MEDIA QUERIES --- */
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2.5rem; }
+            .grid-2 { grid-template-columns: 1fr; }
+            .stat-huge { font-size: 3rem; }
+        }
+
+        /* --- GLITCH TEXT ANIMATION --- */
+        @keyframes glitch {
+            0% { transform: translate(0) }
+            20% { transform: translate(-2px, 2px) }
+            40% { transform: translate(-2px, -2px) }
+            60% { transform: translate(2px, 2px) }
+            80% { transform: translate(2px, -2px) }
+            100% { transform: translate(0) }
+        }
+
+        .glitch-hover:hover {
+            animation: glitch 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
+            color: var(--accent-cyan);
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- VISUAL FX -->
+    <div class="cursor-dot" id="cursor-dot"></div>
+    <div class="cursor-outline" id="cursor-outline"></div>
+    <div class="scanlines"></div>
+    <div class="noise"></div>
+
+    <!-- HERO -->
+    <section class="hero">
+        <div class="container">
+            <h1 class="scramble-text">THE DRACO INITIATIVE</h1>
+            <p class="subtitle">> CASE STUDY: TAKING DOWN A $1 BILLION SYNDICATE</p>
+            
+            <div class="hero-img-container hover-trigger">
+                <!-- Page 1 Screenshot -->
+                <img src="1.jpg" alt="Bitdefender Draco Team Intro">
+            </div>
+            <p style="margin-top: 20px; font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent-cyan);">
+                // SCROLL TO DECRYPT DATA
+                <br>
+                v
+            </p>
+        </div>
+    </section>
+
+    <!-- SECTION 1: THE TEAM -->
+    <div class="container">
+        <article class="content-block">
+            <div class="section-header">
+                <h2>01 // <span class="highlight-cyan">THE SHADOW TEAM</span></h2>
+            </div>
+            <div class="grid-2">
+                <div>
+                    <p>In a hidden corner of Romania, an elite unit known as the <strong class="highlight-cyan">Draco Team</strong> operates in the shadows. By day, they are malware researchers for <strong>Bitdefender</strong>. By night, they are volunteer cybercrime hunters.</p>
+                    <p>Their mission isn't just business; it's personal. Their war began when a notorious ransomware group infected the computer of a team member's loved one.</p>
+                </div>
+                <div class="card hover-trigger">
+                    <img src="2.jpg" alt="Draco Team Profile">
+                    <p style="font-size: 0.8rem; font-family: var(--font-mono);">IDENTITY: CLASSIFIED // STATUS: ACTIVE</p>
+                </div>
+            </div>
+        </article>
+
+        <!-- SECTION 2: THE ENEMY -->
+        <article class="content-block">
+            <div class="section-header">
+                <h2>02 // <span class="highlight-red">RANSOMWARE AS A SERVICE</span></h2>
+            </div>
+            <p>The enemy wasn't a lone hacker. It was a global franchise. Groups like <strong>GandCrab</strong> operated like a corporate entity—specifically, like McDonald's.</p>
+            
+            <div class="grid-2">
+                <div class="card hover-trigger">
+                    <img src="3.jpg" alt="RaaS Model">
+                </div>
+                <div>
+                    <ul style="list-style: none; font-family: var(--font-mono);">
+                        <li style="margin-bottom: 15px;">> <strong>CORPORATE (Developers):</strong> Build the malware (30% Profit).</li>
+                        <li style="margin-bottom: 15px;">> <strong>AFFILIATES (Franchisees):</strong> Hack victims & deploy (70% Profit).</li>
+                        <li style="color: var(--accent-red);">> <strong>SECURITY:</strong> Intense vetting including lie detectors.</li>
+                    </ul>
+                </div>
+            </div>
+            <br>
+            <div class="terminal-box">
+                GANDCRAB MARKET SHARE: 50% <br>
+                VICTIM PAYMENT RATE: 70% <br>
+                PROFITABILITY: IMMENSE (Ferraris, Helicopters)
+            </div>
+            <img src="4.jpg" class="full-width-img hover-trigger" alt="GandCrab Stats">
+        </article>
+
+        <!-- SECTION 3: THE STRATEGY -->
+        <article class="content-block">
+            <div class="section-header">
+                <h2>03 // <span class="highlight-cyan">TRUST DISRUPTION</span></h2>
+            </div>
+            <p>The Draco team couldn't break down doors, so they broke the criminals' trust. They engaged in a 2.5-year cycle of releasing free decryptors.</p>
+            
+            <div class="grid-2">
+                <div>
+                    <h3 class="highlight-gold">THE LOOP</h3>
+                    <br>
+                    <p>1. Draco releases free decryptor.</p>
+                    <p>2. Criminals lose money & update code.</p>
+                    <p>3. Draco breaks the new code. Repeat.</p>
+                    <p>Result: Affiliates lost faith in the product and the business collapsed.</p>
+                </div>
+                <div class="card hover-trigger">
+                    <img src="5.jpg" alt="Strategy Cycle">
+                </div>
+            </div>
+        </article>
+
+        <!-- SECTION 4: REBRAND & VICTORY -->
+        <article class="content-block">
+            <div class="section-header">
+                <h2>04 // <span class="highlight-red">THE REVIL RESURGENCE</span></h2>
+            </div>
+            <p>GandCrab "retired" only to return as <strong>REvil</strong>. Same code, new skin. They targeted global supply chains (JBS, Colonial Pipeline).</p>
+            <div class="grid-2">
+                <img src="6.jpg" style="width: 100%; border-radius: 4px;" alt="Revil Rebrand">
+                <div style="text-align: right;">
+                    <p>Draco struck back again.</p>
+                    <p>TOTAL MONEY SAVED FOR VICTIMS:</p>
+                    <div class="stat-huge">$1BN+</div>
+                </div>
+            </div>
+            <br>
+            <img src="7.jpg" class="full-width-img hover-trigger" style="border-color: var(--accent-gold);" alt="1 Billion Saved">
+        </article>
+
+        <!-- INTERLUDE: CHANGING BATTLEFIELD -->
+        <article class="content-block">
+            <div class="container" style="text-align: center;">
+                <h3 class="scramble-text" style="color: var(--accent-red); margin-bottom: 20px;">> WAR_ZONE_UPDATE: 2.0</h3>
+                <img src="8.jpg" class="full-width-img hover-trigger" alt="The Battlefield is Changing">
+                <p>The criminals are adapting. Ransomware was just one front. Now they are weaponizing Artificial Intelligence.</p>
+            </div>
+        </article>
+
+        <!-- SECTION 5: AI WARFARE -->
+        <article class="content-block">
+            <div class="section-header">
+                <h2>05 // <span class="highlight-red">THE NEW BATTLEFIELD: AI</span></h2>
+            </div>
+            <p>The war has shifted. Criminals now use AI to eliminate the skill gap, creating perfect phishing emails and deepfakes.</p>
+            
+            <div class="grid-2">
+                <div class="card hover-trigger">
+                    <img src="9.jpg" alt="AI Skill Gap">
+                    <p style="font-size: 0.8rem;">ATTACK SOPHISTICATION VS TIME</p>
+                </div>
+                <div class="card hover-trigger">
+                    <img src="10.jpg" alt="AI Threats">
+                    <p style="font-size: 0.8rem;">NEW WEAPONS: DECEPTION & MIMICRY</p>
+                </div>
+            </div>
+            
+            <br><br>
+            <div class="terminal-box" style="border-color: var(--accent-cyan); color: var(--accent-cyan);">
+                > DETECTED: MULTI-TOUCHPOINT ATTACKS <br>
+                > STATUS: INVISIBLE TO TRADITIONAL SECURITY
+            </div>
+            <img src="12.jpg" class="full-width-img hover-trigger" alt="Multi-touchpoint scams">
+
+            <h3 style="margin-top: 60px; text-align: center;">FIGHTING FIRE WITH FIRE</h3>
+            <p style="text-align: center;">Bitdefender uses AI Honeypots to waste scammers' time and Intent Analysis to detect deepfakes.</p>
+            <img src="11.jpg" class="full-width-img hover-trigger" style="border-color: var(--accent-cyan);" alt="AI Defense">
+        </article>
+
+        <!-- SECTION 6: HUMAN IMPACT -->
+        <article class="content-block">
+            <div class="section-header">
+                <h2>06 // <span class="highlight-gold">HUMANITY RESTORED</span></h2>
+            </div>
+            <p>Every file decrypted is a life saved. It's not just about data; it's about a PhD student's thesis or a Syrian couple's only photos of their deceased children.</p>
+            
+            <div class="grid-2">
+                <div class="card hover-trigger">
+                    <img src="13.jpg" alt="Human Stories">
+                </div>
+                <div>
+                    <blockquote style="border-left: 2px solid var(--accent-cyan); padding-left: 20px; font-style: italic; color: #fff;">
+                        "I believe that cybersecurity should be a fundamental human right... you need to secure your digital life to enjoy your physical life."
+                    </blockquote>
+                    <p style="margin-top: 10px; font-family: var(--font-mono);">- Bogdan B., Director of Threat Research</p>
+                </div>
+            </div>
+            <img src="14.jpg" class="full-width-img hover-trigger" alt="Human Right Quote">
+        </article>
+    </div>
+
+    <!-- CONCLUSION -->
+    <section class="hero" style="height: 60vh; margin-top: 50px;">
+        <div class="container">
+            <h2 class="scramble-text">ARE WE WINNING?</h2>
+            <img src="15.jpg" style="max-width: 600px; width: 100%; margin: 30px auto;" class="hover-trigger" alt="Draco Team Silhouette">
+            <h3 class="highlight-cyan">"WELL, WE'RE STILL HERE, RIGHT?"</h3>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="container">
+            <p class="credits">
+                CONTENT BASED ON RESEARCH BY <strong class="glitch-hover">BITDEFENDER</strong> <br>
+                AS FEATURED ON <strong class="glitch-hover">NETWORKCHUCK</strong> <br>
+                DONE BY <strong class="glitch-hover">C V SAI KAMESH</strong>
+            </p>
+            <p style="font-size: 0.7rem; color: #444; margin-top: 20px;">
+                > END OF TRANSMISSION <span class="highlight-red">_</span>
+            </p>
+        </div>
+    </footer>
+
+    <!-- JAVASCRIPT FOR DYNAMICS -->
+    <script>
+        // --- CUSTOM CURSOR LOGIC ---
+        const cursorDot = document.getElementById('cursor-dot');
+        const cursorOutline = document.getElementById('cursor-outline');
+        const hoverTriggers = document.querySelectorAll('.hover-trigger, a, button');
+
+        window.addEventListener('mousemove', (e) => {
+            const posX = e.clientX;
+            const posY = e.clientY;
+
+            // Dot follows instantly
+            cursorDot.style.left = `${posX}px`;
+            cursorDot.style.top = `${posY}px`;
+
+            // Outline follows with slight delay
+            cursorOutline.animate({
+                left: `${posX}px`,
+                top: `${posY}px`
+            }, { duration: 500, fill: "forwards" });
+        });
+
+        // Hover Effects
+        hoverTriggers.forEach(trigger => {
+            trigger.addEventListener('mouseenter', () => {
+                document.body.classList.add('hovering');
+            });
+            trigger.addEventListener('mouseleave', () => {
+                document.body.classList.remove('hovering');
+            });
+        });
+
+        // --- SCROLL ANIMATION OBSERVER ---
+        const observerOptions = {
+            threshold: 0.1
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.content-block').forEach(el => {
+            observer.observe(el);
+        });
+
+        // --- SCRAMBLE TEXT EFFECT ---
+        class TextScramble {
+            constructor(el) {
+                this.el = el;
+                this.chars = '!<>-_\\/[]{}—=+*^?#________';
+                this.update = this.update.bind(this);
+            }
+            setText(newText) {
+                const oldText = this.el.innerText;
+                const length = Math.max(oldText.length, newText.length);
+                const promise = new Promise((resolve) => this.resolve = resolve);
+                this.queue = [];
+                for (let i = 0; i < length; i++) {
+                    const from = oldText[i] || '';
+                    const to = newText[i] || '';
+                    const start = Math.floor(Math.random() * 40);
+                    const end = start + Math.floor(Math.random() * 40);
+                    this.queue.push({ from, to, start, end });
+                }
+                cancelAnimationFrame(this.frameRequest);
+                this.frame = 0;
+                this.update();
+                return promise;
+            }
+            update() {
+                let output = '';
+                let complete = 0;
+                for (let i = 0, n = this.queue.length; i < n; i++) {
+                    let { from, to, start, end, char } = this.queue[i];
+                    if (this.frame >= end) {
+                        complete++;
+                        output += to;
+                    } else if (this.frame >= start) {
+                        if (!char || Math.random() < 0.28) {
+                            char = this.randomChar();
+                            this.queue[i].char = char;
+                        }
+                        output += `<span class="highlight-cyan">${char}</span>`;
+                    } else {
+                        output += from;
+                    }
+                }
+                this.el.innerHTML = output;
+                if (complete === this.queue.length) {
+                    this.resolve();
+                } else {
+                    this.frameRequest = requestAnimationFrame(this.update);
+                    this.frame++;
+                }
+            }
+            randomChar() {
+                return this.chars[Math.floor(Math.random() * this.chars.length)];
+            }
+        }
+
+        // Apply Scramble to Headers
+        const els = document.querySelectorAll('.scramble-text');
+        els.forEach(el => {
+            const fx = new TextScramble(el);
+            let counter = 0;
+            const next = () => {
+                fx.setText(el.innerText).then(() => {
+                    // Animation done
+                });
+            };
+            // Trigger animation when element comes into view
+            const obs = new IntersectionObserver((entries) => {
+                if(entries[0].isIntersecting) {
+                    next();
+                    obs.disconnect();
+                }
+            });
+            obs.observe(el);
+        });
+
+    </script>
+</body>
+</html>
